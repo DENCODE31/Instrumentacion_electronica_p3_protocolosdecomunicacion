@@ -5,7 +5,7 @@
 
 # Práctica 3 — Protocolos de Comunicación con ESP32
 
-**Universidad Nacional de Colombia · Instrumentación Electrónica · 9° Semestre**
+**Universidad Nacional de Colombia · Instrumentación Electrónica · 7° Grupo**
 
 Repositorio de prácticas de laboratorio enfocado en la implementación de protocolos de comunicación cableados e inalámbricos sobre microcontroladores ESP32, usando el framework **ESP-IDF** con **FreeRTOS**. Cada carpeta es un proyecto independiente y compilable, que aborda desde comunicación serial básica hasta conectividad IoT sobre WiFi y Bluetooth.
 
@@ -172,6 +172,6 @@ Para salir del monitor: `Ctrl + ]`
 
 ## Autor
 
-**Dennir Cuastumal**  
-Ingeniería Electrónica — Universidad Nacional de Colombia  
+**Yeison Dénnir Termal Cuastumal**  
+Ingeniería Electrónica — Universidad Nacional de Colombia  2026
 [GitHub](https://github.com/Dennir)
