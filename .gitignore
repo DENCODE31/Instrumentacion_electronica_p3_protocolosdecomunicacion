@@ -1,0 +1,65 @@
+# ============================================================
+#  ESP-IDF — archivos generados por el sistema de build
+# ============================================================
+
+# Directorio de build (binarios, objetos, ELF, map, etc.)
+build/
+build_*/
+
+# Configuración del proyecto generada por menuconfig
+sdkconfig
+sdkconfig.old
+
+# Componentes descargados automáticamente por el IDF Component Manager
+managed_components/
+
+# Archivos de dependencias del IDF Component Manager
+dependencies.lock
+
+# ============================================================
+#  VS Code
+# ============================================================
+
+.vscode/
+!.vscode/launch.json
+
+# ============================================================
+#  Sistema operativo
+# ============================================================
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ============================================================
+#  Herramientas de desarrollo
+# ============================================================
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+
+# ============================================================
+#  Archivos de credenciales y configuración local
+# ============================================================
+
+# No subir credenciales WiFi, tokens, certificados privados
+*.pem
+*.key
+secrets.h
+wifi_credentials.h
