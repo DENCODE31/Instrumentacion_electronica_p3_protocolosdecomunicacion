@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(winget install --id Kitware.CMake --accept-package-agreements --accept-source-agreements)",
-      "PowerShell(winget install --id Kitware.CMake --source winget --accept-package-agreements --accept-source-agreements)"
-    ]
-  }
-}
