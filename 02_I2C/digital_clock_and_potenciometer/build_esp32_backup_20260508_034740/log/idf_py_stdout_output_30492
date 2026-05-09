@@ -1,0 +1,17 @@
+Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=C:\Espressif\python_env\idf5.5_py3.13_env\Scripts\python.exe -DESP_PLATFORM=1 -DCCACHE_ENABLE=1 C:\Users\ALIENWARE\Desktop\Personal\UNAL_9_SEM\INSTRUMENTACION\03_practica\02_I2C\digital_clock_and_potenciometer
+-- git rev-parse returned 'fatal: detected dubious ownership in repository at 'C:/esp/v5.5.2/esp-idf'
+'C:/esp/v5.5.2/esp-idf' is owned by:
+	DENNIR/ALIENWARE (S-1-5-21-3752727463-450993284-1716549407-1001)
+but the current user is:
+	DENNIR/CodexSandboxOffline (S-1-5-21-3752727463-450993284-1716549407-1008)
+To add an exception for this directory, call:
+
+	git config --global --add safe.directory C:/esp/v5.5.2/esp-idf'
+-- Component directory C:/Users/ALIENWARE/Desktop/Personal/UNAL_9_SEM/INSTRUMENTACION/03_practica/02_I2C/digital_clock_and_potenciometer/components/esp-idf-ssd1306 does not contain a CMakeLists.txt file. No component will be added
+-- Minimal build - OFF
+-- ccache will be used for faster recompilation
+-- git rev-parse returned 'fatal: not a git repository (or any of the parent directories): .git'
+-- Could not use 'git describe' to determine PROJECT_VER.
+-- Building ESP-IDF components for target esp32
+-- ESP-TEE is currently supported only on the esp32c6;esp32h2;esp32c5 SoCs
+-- Configuring incomplete, errors occurred!

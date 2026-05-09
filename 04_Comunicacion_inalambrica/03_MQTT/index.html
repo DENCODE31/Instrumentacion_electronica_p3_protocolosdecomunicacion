@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HMI MQTT — Instrumentación</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    /* ── TOKENS ── */
+    :root {
+      --bg:      #161d2b;
+      --sidebar: #111621;
+      --card:    #0a1628;
+      --border:  #1a2744;
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --dim:     #334155;
+      --cyan:    #38bdf8;
+      --indigo:  #818cf8;
+      --green:   #22c55e;
+      --red:     #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      overflow-x: hidden;
+    }
+
+    /* ── BACKGROUND GRID ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(ellipse at 15% 10%,  rgba(56,189,248,0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 90%,  rgba(129,140,248,0.04) 0%, transparent 50%),
+        linear-gradient(rgba(56,189,248,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,189,248,0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 1.1rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 10;
+      animation: slideInLeft 0.45s ease both;
+    }
+
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-16px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .logo-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--cyan), var(--indigo));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+      box-shadow: 0 0 18px rgba(56,189,248,0.4);
+    }
+
+    .logo-text {
+      font-size: 0.95rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--cyan), var(--indigo));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+
+    .logo-sub {
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .sidebar-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 0 0 1.2rem;
+    }
+
+    /* ── SIDEBAR STATUS ── */
+    .s-status {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 0.75rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.74rem;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .s-status.connected {
+      background: rgba(34,197,94,0.08);
+      border: 1px solid rgba(34,197,94,0.22);
+      color: #86efac;
+    }
+
+    .s-status.disconnected {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.22);
+      color: #fca5a5;
+    }
+
+    .s-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .connected    .s-dot { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+    .disconnected .s-dot { background: var(--red); }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.3; }
+    }
+
+    /* ── SIDEBAR SECTIONS ── */
+    .s-section-label {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 0.55rem;
+    }
+
+    .topic-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.55rem 0.7rem;
+      border-radius: 0.6rem;
+      margin-bottom: 0.4rem;
+      background: rgba(56,189,248,0.03);
+      border: 1px solid rgba(56,189,248,0.07);
+    }
+
+    .topic-badge {
+      font-size: 0.58rem;
+      font-weight: 700;
+      padding: 0.12rem 0.38rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .topic-badge.sub { background: rgba(56,189,248,0.12); color: var(--cyan); }
+    .topic-badge.pub { background: rgba(129,140,248,0.12); color: var(--indigo); }
+
+    .topic-path {
+      font-size: 0.62rem;
+      color: var(--muted);
+      font-family: 'Consolas', monospace;
+      word-break: break-all;
+      line-height: 1.45;
+    }
+
+    .sys-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.42rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .sys-row:last-child { border-bottom: none; }
+    .sys-key { font-size: 0.63rem; color: var(--muted); }
+    .sys-val { font-size: 0.63rem; color: var(--text); font-family: 'Consolas', monospace; font-weight: 600; }
+
+    .sidebar-footer {
+      margin-top: auto;
+      margin-bottom: 20px;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .sidebar-footer p {
+      font-size: 0.6rem;
+      color: var(--dim);
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    /* ── MAIN ── */
+    .main {
+      display: flex;
+      flex-direction: column;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      margin-bottom: 2rem;
+      animation: fadeInDown 0.45s ease 0.1s both;
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .topbar h1 {
+      font-size: 1.85rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--cyan) 0%, var(--indigo) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+
+    .topbar .sub {
+      margin-top: 0.4rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    /* ── GRID ── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      flex: 1;
+    }
+
+    .left-col {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* ── CHART ── */
+    .chart-container {
+      display: flex;
+      align-items: stretch;
+      gap: 0.6rem;
+    }
+
+    .chart-y-labels {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1px 0;
+      flex-shrink: 0;
+    }
+
+    .chart-y-labels span {
+      font-size: 0.55rem;
+      color: var(--dim);
+      font-family: 'Consolas', monospace;
+      line-height: 1;
+      text-align: right;
+    }
+
+    .chart-svg {
+      flex: 1;
+      height: 110px;
+      display: block;
+      overflow: visible;
+    }
+
+    .chart-stats {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 0.85rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .cs-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .cs-label {
+      font-size: 0.55rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .cs-val {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--cyan);
+      font-variant-numeric: tabular-nums;
+      font-family: 'Consolas', monospace;
+    }
+
+    /* ── CARD — LilaRest / dark adaptation ── */
+    .card {
+      --bg:       #1b2336;
+      --contrast: #141c2b;
+      --grey:     #2e4060;
+      position: relative;
+      padding: 9px;
+      background-color: var(--bg);
+      border-radius: 35px;
+      box-shadow: rgba(0,0,0,0.55) 0px 50px 100px -20px,
+                  rgba(0,0,0,0.45) 0px 30px 60px -30px,
+                  rgba(0,8,25,0.50) 0px -2px 6px 0px inset;
+      overflow: hidden;
+      transition: box-shadow 0.3s, transform 0.25s;
+      animation: fadeInUp 0.5s ease both;
+    }
+
+    .card:nth-child(1) { animation-delay: 0.18s; }
+    .card:nth-child(2) { animation-delay: 0.28s; }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: rgba(0,0,0,0.65) 0px 60px 120px -20px,
+                  rgba(0,0,0,0.55) 0px 36px 72px -30px,
+                  rgba(0,8,25,0.50) 0px -2px 6px 0px inset;
+    }
+
+    /* Textura de ruido sobre el marco exterior */
+    .card-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: 35px;
+      background: repeating-conic-gradient(var(--bg) 0.0000001%, var(--grey) 0.000104%) 60% 60% / 600% 600%;
+      filter: opacity(10%) contrast(105%);
+      z-index: 1;
+    }
+
+    /* Panel interior donde vive el contenido */
+    .card-inner {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      width: 100%;
+      background-color: var(--contrast);
+      border-radius: 30px;
+      padding: 1.75rem;
+    }
+
+    /* ── CARD HEADER ── */
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .card-icon {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .card-icon.cyan-ic   { background: rgba(56,189,248,0.1);  border: 1px solid rgba(56,189,248,0.2);  }
+    .card-icon.indigo-ic { background: rgba(129,140,248,0.1); border: 1px solid rgba(129,140,248,0.2); }
+
+    .card-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── POTENCIÓMETRO — gauge ── */
+    .gauge-wrap {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 1.4rem;
+    }
+
+    .gauge-arc {
+      position: relative;
+      width: 106px;
+      height: 106px;
+      flex-shrink: 0;
+    }
+
+    /* El SVG ya viene rotado via el elemento */
+    .gauge-arc svg { width: 100%; height: 100%; }
+
+    .gauge-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .gauge-pct {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: var(--cyan);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .gauge-unit {
+      font-size: 0.6rem;
+      color: var(--muted);
+      margin-top: 2px;
+      font-weight: 600;
+    }
+
+    .gauge-metrics {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .metric-block { display: flex; flex-direction: column; gap: 1px; }
+
+    .metric-label {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .metric-val {
+      font-size: 2.1rem;
+      font-weight: 900;
+      color: var(--cyan);
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-sub {
+      font-size: 0.68rem;
+      color: var(--dim);
+    }
+
+    .volt-val {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .volt-unit { font-size: 0.78rem; color: var(--muted); }
+
+    /* ── BAR ── */
+    .bar-track {
+      height: 6px;
+      background: rgba(26,39,68,0.9);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid rgba(26,39,68,1);
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--cyan), var(--indigo));
+      border-radius: 999px;
+      transition: width 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bar-fill::after {
+      content: '';
+      position: absolute;
+      top: 0; right: -30px;
+      width: 30px; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45));
+      animation: shimmer 1.8s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { opacity: 0; transform: translateX(-20px); }
+      50%  { opacity: 1; }
+      100% { opacity: 0; transform: translateX(20px); }
+    }
+
+    /* ── LED RGB ── */
+    .led-layout { display: flex; flex-direction: column; gap: 1rem; }
+
+    .led-preview-row {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .led-glow {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: #070d1e;
+      border: 2px solid #1a2744;
+      transition: background 0.4s ease, box-shadow 0.4s ease;
+      flex-shrink: 0;
+    }
+
+    .led-info { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; }
+
+    .led-hex {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--text);
+      font-family: 'Consolas', monospace;
+      letter-spacing: 0.04em;
+    }
+
+    .led-rgb-text {
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-family: 'Consolas', monospace;
+    }
+
+    .ctrl-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .ctrl-row label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      white-space: nowrap;
+      font-weight: 600;
+    }
+
+    input[type="color"] {
+      flex: 1;
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 0.6rem;
+      background: var(--card);
+      cursor: pointer;
+      padding: 2px 3px;
+    }
+
+    .btn-send {
+      width: 100%;
+      padding: 0.68rem;
+      border: none;
+      border-radius: 0.75rem;
+      background: linear-gradient(135deg, var(--cyan), var(--indigo));
+      color: #010610;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s, box-shadow 0.25s;
+      letter-spacing: 0.03em;
+    }
+
+    .btn-send:hover  { opacity: 0.9; transform: scale(1.02); box-shadow: 0 4px 24px rgba(56,189,248,0.3); }
+    .btn-send:active { transform: scale(0.97); }
+
+    .micro-label {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .presets {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.45rem;
+    }
+
+    .preset {
+      aspect-ratio: 1;
+      border-radius: 0.5rem;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s, box-shadow 0.2s;
+    }
+
+    .preset:hover  { transform: scale(1.14); border-color: rgba(255,255,255,0.4); }
+    .preset:active { transform: scale(0.9); }
+
+    .last-cmd {
+      padding: 0.5rem 0.8rem;
+      background: rgba(1,6,16,0.8);
+      border: 1px solid var(--border);
+      border-radius: 0.65rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-family: 'Consolas', monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── BRIGHTNESS ── */
+    .bri-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.5rem;
+    }
+
+    .bri-title {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .bri-pct {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .bri-capsule {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(10,22,40,0.9);
+      transition: background 0.4s ease, border-color 0.3s;
+    }
+
+    .bri-icon { font-size: 0.95rem; flex-shrink: 0; line-height: 1; }
+
+    .bri-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: 1;
+      height: 5px;
+      border-radius: 999px;
+      background: #1e293b;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .bri-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: #f8fafc;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 0 2px rgba(255,255,255,0.08);
+      transition: box-shadow 0.15s, transform 0.1s;
+    }
+
+    .bri-slider::-webkit-slider-thumb:hover  { box-shadow: 0 2px 12px rgba(0,0,0,0.6), 0 0 14px rgba(255,255,255,0.3); transform: scale(1.1); }
+    .bri-slider::-webkit-slider-thumb:active { transform: scale(0.92); }
+
+    /* ── TOGGLE SWITCH LED ── */
+    #ledToggle { display: none; }
+
+    .switch {
+      position: relative;
+      width: fit-content;
+      padding: 10px 20px;
+      background-color: rgb(46, 46, 46);
+      border-radius: 50px;
+      z-index: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: white;
+      font-size: 0.9em;
+      font-weight: 600;
+      transition: all 0.3s;
+      user-select: none;
+    }
+
+    .switch svg path { fill: white; }
+
+    #ledToggle:checked + .switch {
+      background-color: rgb(174, 0, 255);
+      box-shadow: 0px 0px 40px rgba(174, 0, 255, 0.438);
+    }
+
+    .switch-row {
+      display: flex;
+      justify-content: center;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      body                { grid-template-columns: 1fr; }
+      .sidebar            { display: none; }
+      .main               { padding: 1.5rem; }
+      .grid               { grid-template-columns: 1fr; }
+      .metric-val         { font-size: 1.7rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">⚡</div>
+    <div>
+      <div class="logo-text">HMI MQTT</div>
+      <div class="logo-sub">Dashboard</div>
+    </div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div id="sStatus" class="s-status disconnected">
+    <div class="s-dot"></div>
+    <span id="sStatusText">Conectando...</span>
+  </div>
+
+  <div class="s-section-label">Tópicos</div>
+  <div class="topic-row">
+    <span class="topic-badge sub">SUB</span>
+    <div class="topic-path">instrumentacion/grupo1/potenciometro</div>
+  </div>
+  <div class="topic-row" style="margin-bottom:1.4rem">
+    <span class="topic-badge pub">PUB</span>
+    <div class="topic-path">instrumentacion/grupo1/led</div>
+  </div>
+
+  <div class="s-section-label">Sistema</div>
+  <div class="sys-row">
+    <span class="sys-key">Broker</span>
+    <span class="sys-val">emqx.io</span>
+  </div>
+  <div class="sys-row">
+    <span class="sys-key">Puerto web</span>
+    <span class="sys-val">WSS :8084</span>
+  </div>
+  <div class="sys-row">
+    <span class="sys-key">Puerto ESP32</span>
+    <span class="sys-val">TCP :1883</span>
+  </div>
+  <div class="sys-row">
+    <span class="sys-key">Protocolo</span>
+    <span class="sys-val">MQTT 3.1.1</span>
+  </div>
+
+  <div class="sidebar-footer">
+    <p>Universidad Nacional de Colombia<br>Instrumentación Electrónica<br>Grupo 7 · 2025-I</p>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<div class="main">
+
+  <div class="topbar">
+    <h1>Panel de Control</h1>
+    <p class="sub">Comunicación Inalámbrica · Práctica 4 · MQTT sobre WebSocket</p>
+  </div>
+
+  <div class="grid">
+  <div class="left-col">
+
+    <!-- ── POTENCIÓMETRO ── -->
+    <div class="card">
+      <div class="card-overlay"></div>
+      <div class="card-inner">
+
+        <div class="card-header">
+          <div class="card-icon cyan-ic">📡</div>
+          <div class="card-title">Sensor — Potenciómetro ADC</div>
+        </div>
+
+        <div class="gauge-wrap">
+          <!-- Arco SVG tipo gauge -->
+          <div class="gauge-arc">
+            <svg viewBox="0 0 100 100" style="transform:rotate(-210deg)">
+              <defs>
+                <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%"   stop-color="#38bdf8"/>
+                  <stop offset="100%" stop-color="#818cf8"/>
+                </linearGradient>
+              </defs>
+              <!-- Track 240° -->
+              <circle cx="50" cy="50" r="42"
+                fill="none" stroke="#1a2744" stroke-width="8"
+                stroke-linecap="round"
+                stroke-dasharray="176 264"/>
+              <!-- Fill dinámico -->
+              <circle id="arcFill" cx="50" cy="50" r="42"
+                fill="none" stroke="url(#arcGrad)" stroke-width="8"
+                stroke-linecap="round"
+                stroke-dasharray="0 264"
+                style="transition: stroke-dasharray 0.3s ease"/>
+            </svg>
+            <div class="gauge-text">
+              <span class="gauge-pct" id="potPct">0</span>
+              <span class="gauge-unit">%</span>
+            </div>
+          </div>
+
+          <div class="gauge-metrics">
+            <div class="metric-block">
+              <span class="metric-label">ADC Raw</span>
+              <span class="metric-val" id="potVal">—</span>
+              <span class="metric-sub">12 bit · 0 – 4095</span>
+            </div>
+            <div class="metric-block">
+              <span class="metric-label">Voltaje</span>
+              <div>
+                <span class="volt-val" id="potVolt">—.———</span>
+                <span class="volt-unit"> V</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bar-track">
+          <div class="bar-fill" id="potBar"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── GRÁFICA ADC ── -->
+    <div class="card">
+      <div class="card-overlay"></div>
+      <div class="card-inner">
+
+        <div class="card-header">
+          <div class="card-icon cyan-ic">📈</div>
+          <div class="card-title">Tendencia — ADC en tiempo real</div>
+        </div>
+
+        <div class="chart-container">
+          <div class="chart-y-labels">
+            <span>4095</span>
+            <span>2048</span>
+            <span>0</span>
+          </div>
+          <svg id="chartSvg" viewBox="0 0 500 110" preserveAspectRatio="none" class="chart-svg">
+            <defs>
+              <linearGradient id="fillGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#38bdf8" stop-opacity="0.22"/>
+                <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stop-color="#38bdf8"/>
+                <stop offset="100%" stop-color="#818cf8"/>
+              </linearGradient>
+            </defs>
+            <!-- Grid horizontales -->
+            <line x1="0" y1="0"   x2="500" y2="0"   stroke="#1e2e48" stroke-width="1"/>
+            <line x1="0" y1="36"  x2="500" y2="36"  stroke="#1e2e48" stroke-width="1"/>
+            <line x1="0" y1="73"  x2="500" y2="73"  stroke="#1e2e48" stroke-width="1"/>
+            <line x1="0" y1="110" x2="500" y2="110" stroke="#1e2e48" stroke-width="1"/>
+            <!-- Área de relleno -->
+            <path id="chartFill" fill="url(#fillGrad)" d=""/>
+            <!-- Línea de datos -->
+            <polyline id="chartLine" fill="none" stroke="url(#lineGrad)"
+                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points=""/>
+            <!-- Punto más reciente -->
+            <circle id="chartDot" cx="0" cy="0" r="3.5" fill="#38bdf8"
+                    style="filter:drop-shadow(0 0 5px #38bdf8); display:none"/>
+          </svg>
+        </div>
+
+        <div class="chart-stats">
+          <div class="cs-item">
+            <span class="cs-label">Mín</span>
+            <span class="cs-val" id="chartMin">—</span>
+          </div>
+          <div class="cs-item">
+            <span class="cs-label">Máx</span>
+            <span class="cs-val" id="chartMax">—</span>
+          </div>
+          <div class="cs-item">
+            <span class="cs-label">Prom</span>
+            <span class="cs-val" id="chartAvg">—</span>
+          </div>
+          <div class="cs-item">
+            <span class="cs-label">Muestras</span>
+            <span class="cs-val" id="chartCount">0</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /left-col -->
+
+    <!-- ── LED RGB ── -->
+    <div class="card">
+      <div class="card-overlay"></div>
+      <div class="card-inner">
+
+        <div class="card-header">
+          <div class="card-icon indigo-ic">💡</div>
+          <div class="card-title">Actuador — LED RGB WS2812</div>
+        </div>
+
+        <div class="led-layout">
+
+          <div class="led-preview-row">
+            <div class="led-glow" id="ledGlow"></div>
+            <div class="led-info">
+              <div class="led-hex"  id="ledHex">#000000</div>
+              <div class="led-rgb-text" id="ledRgbText">RGB(0, 0, 0)</div>
+            </div>
+          </div>
+
+          <div class="switch-row">
+            <input type="checkbox" id="ledToggle" checked onchange="handleLedToggle()">
+            <label class="switch" for="ledToggle">
+              <svg width="18" height="18" viewBox="0 0 24 24">
+                <path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42A6.92 6.92 0 0 1 19 12c0 3.87-3.13 7-7 7A7 7 0 0 1 5 12c0-2.28 1.09-4.3 2.58-4.42L6.17 5.17A9 9 0 0 0 3 12a9 9 0 0 0 18 0c0-3.33-1.81-6.24-4.17-7.83z"/>
+              </svg>
+              LED
+            </label>
+          </div>
+
+          <div class="ctrl-row">
+            <label>Color</label>
+            <input type="color" id="picker" value="#ff0000">
+          </div>
+
+          <button class="btn-send" onclick="enviarDesdeSelector()">Enviar color al LED</button>
+
+          <div class="micro-label">Presets rápidos</div>
+          <div class="presets">
+            <div class="preset" style="background:#ff0000"   onclick="enviarColor(255,0,0)"     title="Rojo"></div>
+            <div class="preset" style="background:#00ff00"   onclick="enviarColor(0,255,0)"     title="Verde"></div>
+            <div class="preset" style="background:#0055ff"   onclick="enviarColor(0,85,255)"    title="Azul"></div>
+            <div class="preset" style="background:#00ffff"   onclick="enviarColor(0,255,255)"   title="Cian"></div>
+            <div class="preset" style="background:#ff00ff"   onclick="enviarColor(255,0,255)"   title="Magenta"></div>
+            <div class="preset" style="background:#ffff00"   onclick="enviarColor(255,255,0)"   title="Amarillo"></div>
+            <div class="preset" style="background:#ffffff"   onclick="enviarColor(255,255,255)" title="Blanco"></div>
+            <div class="preset" style="background:#111827; border:2px solid #374151"
+                                 onclick="enviarColor(0,0,0)" title="Apagar"></div>
+          </div>
+
+          <div class="last-cmd" id="lastCmd">→ Último: ninguno</div>
+
+          <div>
+            <div class="bri-header">
+              <span class="bri-title">Brillo</span>
+              <span class="bri-pct" id="briPct">100%</span>
+            </div>
+            <div class="bri-capsule" id="briCapsule">
+              <span class="bri-icon">🌙</span>
+              <input type="range" class="bri-slider" id="briSlider"
+                     min="0" max="100" value="100"
+                     oninput="onBrightness(this.value)">
+              <span class="bri-icon">☀️</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── MQTT config ───────────────────────────────────────────
+const BROKER    = "wss://broker.emqx.io:8084/mqtt";
+const TOPIC_POT = "instrumentacion/grupo1/potenciometro";
+const TOPIC_LED = "instrumentacion/grupo1/led";
+
+const mqttClient = mqtt.connect(BROKER, {
+  clientId:        "web_" + Math.random().toString(16).substring(2, 10),
+  clean:           true,
+  connectTimeout:  5000,
+  reconnectPeriod: 3000
+});
+
+// ─── Status helpers ────────────────────────────────────────
+function setStatus(ok, text) {
+  const el = document.getElementById("sStatus");
+  el.className = "s-status " + (ok ? "connected" : "disconnected");
+  document.getElementById("sStatusText").innerText = text;
+}
+
+// ─── MQTT events ───────────────────────────────────────────
+mqttClient.on("connect", () => {
+  setStatus(true, "Conectado");
+  mqttClient.subscribe(TOPIC_POT);
+});
+
+// ─── Chart state ───────────────────────────────────────────
+const chartData    = [];
+const CHART_POINTS = 60;
+const SVG_W = 500, SVG_H = 110;
+
+function updateChart(val) {
+  chartData.push(val);
+  if (chartData.length > CHART_POINTS) chartData.shift();
+
+  const n = chartData.length;
+  if (n < 2) return;
+
+  const pts = chartData.map((v, i) => ({
+    x: (i / (CHART_POINTS - 1)) * SVG_W,
+    y: SVG_H - (v / 4095) * SVG_H
+  }));
+
+  const lineStr = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  document.getElementById("chartLine").setAttribute("points", lineStr);
+
+  const fillD = `M${pts[0].x.toFixed(1)},${SVG_H} ` +
+    pts.map(p => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ") +
+    ` L${pts[n-1].x.toFixed(1)},${SVG_H} Z`;
+  document.getElementById("chartFill").setAttribute("d", fillD);
+
+  const dot = document.getElementById("chartDot");
+  dot.setAttribute("cx", pts[n-1].x.toFixed(1));
+  dot.setAttribute("cy", pts[n-1].y.toFixed(1));
+  dot.style.display = "block";
+
+  const min = Math.min(...chartData);
+  const max = Math.max(...chartData);
+  const avg = Math.round(chartData.reduce((a, b) => a + b, 0) / n);
+  document.getElementById("chartMin").innerText   = min;
+  document.getElementById("chartMax").innerText   = max;
+  document.getElementById("chartAvg").innerText   = avg;
+  document.getElementById("chartCount").innerText = n;
+}
+
+// ─── Debounce potenciómetro (120 ms) ──────────────────────
+let potDebounceTimer = null;
+let latestPotVal     = null;
+
+function applyPot(val) {
+  const pct  = (val / 4095) * 100;
+  const fill = (pct / 100) * 176;
+
+  document.getElementById("potVal").innerText   = val;
+  document.getElementById("potVolt").innerText  = ((val / 4095) * 3.3).toFixed(3);
+  document.getElementById("potPct").innerText   = Math.round(pct);
+  document.getElementById("potBar").style.width = Math.min(100, pct).toFixed(1) + "%";
+  document.getElementById("arcFill").setAttribute("stroke-dasharray", fill.toFixed(1) + " 264");
+  updateChart(val);
+}
+
+mqttClient.on("message", (topic, msg) => {
+  if (topic !== TOPIC_POT) return;
+  const val = parseInt(msg.toString());
+  if (isNaN(val)) return;
+
+  latestPotVal = val;
+  clearTimeout(potDebounceTimer);
+  potDebounceTimer = setTimeout(() => applyPot(latestPotVal), 120);
+});
+
+mqttClient.on("reconnect", () => setStatus(false, "Reconectando..."));
+mqttClient.on("error",     () => setStatus(false, "Error MQTT"));
+mqttClient.on("close",     () => setStatus(false, "Desconectado"));
+
+// ─── Estado de color, brillo y toggle ─────────────────────
+let baseR = 255, baseG = 0, baseB = 0;
+let brightness = 100;
+let ledOn = true;
+
+function handleLedToggle() {
+  ledOn = document.getElementById("ledToggle").checked;
+  if (ledOn) {
+    if (!mqttClient.connected) return;
+    const [ar, ag, ab] = applyBrightness(baseR, baseG, baseB, brightness);
+    mqttClient.publish(TOPIC_LED, `${ar},${ag},${ab}`);
+    updateGlow(ar, ag, ab);
+    updateSlider();
+    const hex = [ar, ag, ab].map(v => v.toString(16).padStart(2, "0")).join("");
+    document.getElementById("lastCmd").innerText = `→ RGB(${ar}, ${ag}, ${ab})   #${hex}   ${brightness}%`;
+  } else {
+    if (mqttClient.connected) mqttClient.publish(TOPIC_LED, "0,0,0");
+    updateGlow(0, 0, 0);
+    document.getElementById("lastCmd").innerText = "→ LED apagado";
+  }
+}
+
+function applyBrightness(r, g, b, bri) {
+  return [Math.round(r * bri / 100),
+          Math.round(g * bri / 100),
+          Math.round(b * bri / 100)];
+}
+
+// ─── LED preview ───────────────────────────────────────────
+function updateGlow(r, g, b) {
+  const el = document.getElementById("ledGlow");
+  const hex = [r, g, b].map(v => v.toString(16).padStart(2, "0")).join("");
+
+  document.getElementById("ledHex").innerText     = "#" + hex;
+  document.getElementById("ledRgbText").innerText = `RGB(${r}, ${g}, ${b})`;
+
+  if (r === 0 && g === 0 && b === 0) {
+    el.style.background = "#070d1e";
+    el.style.boxShadow  = "inset 0 0 18px rgba(0,0,0,0.8)";
+  } else {
+    el.style.background = `rgb(${r},${g},${b})`;
+    el.style.boxShadow  = `0 0 28px 8px rgba(${r},${g},${b},0.55),
+                            0 0 64px 24px rgba(${r},${g},${b},0.18)`;
+  }
+}
+
+// ─── Slider de brillo ─────────────────────────────────────
+function updateSlider() {
+  const slider  = document.getElementById("briSlider");
+  const capsule = document.getElementById("briCapsule");
+  const val     = slider.value;
+  const off     = baseR === 0 && baseG === 0 && baseB === 0;
+  const trackColor = off ? "#334155" : `rgb(${baseR},${baseG},${baseB})`;
+
+  slider.style.background =
+    `linear-gradient(to right, ${trackColor} 0%, ${trackColor} ${val}%, #1e293b ${val}%, #1e293b 100%)`;
+
+  capsule.style.background = off
+    ? "rgba(10,22,40,0.9)"
+    : `linear-gradient(to right, rgba(10,22,40,0.95), rgba(${baseR},${baseG},${baseB},0.14))`;
+}
+
+// ─── Enviar color ──────────────────────────────────────────
+function enviarColor(r, g, b) {
+  if (!mqttClient.connected) { alert("Sin conexión al broker."); return; }
+
+  baseR = r; baseG = g; baseB = b;
+
+  // Si el LED estaba apagado, encenderlo automáticamente
+  ledOn = true;
+  document.getElementById("ledToggle").checked = true;
+
+  const [ar, ag, ab] = applyBrightness(r, g, b, brightness);
+  mqttClient.publish(TOPIC_LED, `${ar},${ag},${ab}`);
+  updateGlow(ar, ag, ab);
+  updateSlider();
+
+  const hex = [ar, ag, ab].map(v => v.toString(16).padStart(2, "0")).join("");
+  document.getElementById("lastCmd").innerText =
+    `→ RGB(${ar}, ${ag}, ${ab})   #${hex}   ${brightness}%`;
+}
+
+function enviarDesdeSelector() {
+  const hex = document.getElementById("picker").value;
+  enviarColor(
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16)
+  );
+}
+
+// ─── Control de brillo ─────────────────────────────────────
+function onBrightness(val) {
+  brightness = parseInt(val);
+  document.getElementById("briPct").innerText = val + "%";
+
+  if (!ledOn) { updateSlider(); return; }
+
+  const [ar, ag, ab] = applyBrightness(baseR, baseG, baseB, brightness);
+
+  if (mqttClient.connected) {
+    mqttClient.publish(TOPIC_LED, `${ar},${ag},${ab}`);
+    updateGlow(ar, ag, ab);
+    const hex = [ar, ag, ab].map(v => v.toString(16).padStart(2, "0")).join("");
+    document.getElementById("lastCmd").innerText =
+      `→ RGB(${ar}, ${ag}, ${ab})   #${hex}   ${val}%`;
+  }
+
+  updateSlider();
+}
+</script>
+</body>
+</html>

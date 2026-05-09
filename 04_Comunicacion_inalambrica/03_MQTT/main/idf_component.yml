@@ -1,0 +1,7 @@
+dependencies:
+  espressif/led_strip:
+    version: ">=2.5.2"
+  espressif/esp_wifi_remote:
+    version: ">=0.1.12"
+    rules:
+      - if: "target in [esp32p4, esp32h2]"

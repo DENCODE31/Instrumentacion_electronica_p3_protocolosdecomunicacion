@@ -1,0 +1,25 @@
+Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=C:\Espressif\python_env\idf5.5_py3.13_env\Scripts\python.exe -DESP_PLATFORM=1 -DCMAKE_C_COMPILER=C:\Espressif\tools\xtensa-esp-elf\esp-14.2.0_20251107\xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe -DCMAKE_CXX_COMPILER=C:\Espressif\tools\xtensa-esp-elf\esp-14.2.0_20251107\xtensa-esp-elf\bin\xtensa-esp32-elf-g++.exe -DCMAKE_ASM_COMPILER=C:\Espressif\tools\xtensa-esp-elf\esp-14.2.0_20251107\xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe -DCCACHE_ENABLE=1 C:\Users\ALIENWARE\Desktop\Personal\UNAL_9_SEM\INSTRUMENTACION\03_practica\02_I2C\digital_clock_and_potenciometer
+fatal: detected dubious ownership in repository at 'C:/esp/v5.5.2/esp-idf'
+'C:/esp/v5.5.2/esp-idf' is owned by:
+	DENNIR/ALIENWARE (S-1-5-21-3752727463-450993284-1716549407-1001)
+but the current user is:
+	DENNIR/CodexSandboxOffline (S-1-5-21-3752727463-450993284-1716549407-1008)
+To add an exception for this directory, call:
+
+	git config --global --add safe.directory C:/esp/v5.5.2/esp-idf
+fatal: detected dubious ownership in repository at 'C:/esp/v5.5.2/esp-idf'
+'C:/esp/v5.5.2/esp-idf' is owned by:
+	DENNIR/ALIENWARE (S-1-5-21-3752727463-450993284-1716549407-1001)
+but the current user is:
+	DENNIR/CodexSandboxOffline (S-1-5-21-3752727463-450993284-1716549407-1008)
+To add an exception for this directory, call:
+
+	git config --global --add safe.directory C:/esp/v5.5.2/esp-idf
+fatal: detected dubious ownership in repository at 'C:/esp/v5.5.2/esp-idf/components/openthread/openthread'
+'C:/esp/v5.5.2/esp-idf/components/openthread/openthread/.git' is owned by:
+	DENNIR/ALIENWARE (S-1-5-21-3752727463-450993284-1716549407-1001)
+but the current user is:
+	DENNIR/CodexSandboxOffline (S-1-5-21-3752727463-450993284-1716549407-1008)
+To add an exception for this directory, call:
+
+	git config --global --add safe.directory C:/esp/v5.5.2/esp-idf/components/openthread/openthread
