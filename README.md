@@ -174,4 +174,4 @@ Para salir del monitor: `Ctrl + ]`
 
 **Yeison Dénnir Termal Cuastumal**  
 Ingeniería Electrónica — Universidad Nacional de Colombia  2026
-[GitHub](https://github.com/Dennir)
+[GitHub]([https://github.com/Dennir](https://github.com/DENCODE31))
