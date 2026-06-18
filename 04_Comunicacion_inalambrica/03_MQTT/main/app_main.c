@@ -26,13 +26,15 @@
 #include "esp_netif.h"
 #include "mqtt_client.h"
 #include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
 #include "led_strip.h"
 
 // ------------------------------------------------------
 // CREDENCIALES WIFI
 // ------------------------------------------------------
-#define WIFI_SSID       "DESIGNIO"  // ¡CAMBIAR POR LAS CREDENCIALES REALES!
-#define WIFI_PASSWORD   "1053806111"  // ¡CAMBIAR POR LAS CREDENCIALES REALES!
+#define WIFI_SSID       "******"  // ¡CAMBIAR POR LAS CREDENCIALES REALES!
+#define WIFI_PASSWORD   "******"  // ¡CAMBIAR POR LAS CREDENCIALES REALES!
 
 #define WIFI_MAX_RETRY  5 // Número máximo de reintentos de conexión WiFi antes de dar error definitivo
 
@@ -44,8 +46,8 @@
 // ------------------------------------------------------
 // TÓPICOS MQTT — deben coincidir con index.html
 // ------------------------------------------------------
-#define TOPIC_POT  "instrumentacion/grupo1/potenciometro"
-#define TOPIC_LED  "instrumentacion/grupo1/led"
+#define TOPIC_POT  "instrumentacion/grupo7/potenciometro"
+#define TOPIC_LED  "instrumentacion/grupo7/led"
 
 // ------------------------------------------------------
 // PINES (ESP32-C6 DevKit-C1)
@@ -56,7 +58,7 @@
 // ------------------------------------------------------
 // ADC
 // ------------------------------------------------------
-#define ADC_MAX_VAL     4095
+#define ADC_VREF_MV     3300   /* Voltaje de referencia asumido si no hay calibración */
 
 // ------------------------------------------------------
 // INTERVALO DE PUBLICACIÓN
@@ -77,9 +79,11 @@ static const char *TAG = "mqtt_practica";
 static esp_mqtt_client_handle_t  mqtt_client = NULL;
 static EventGroupHandle_t        wifi_events;
 static adc_oneshot_unit_handle_t adc_handle;
+static adc_cali_handle_t         adc_cali_handle = NULL;
+static bool                      adc_calibrated  = false;
 static led_strip_handle_t        led_strip;
 
-static int pot_valor       = 0;
+static int pot_valor       = 0;   /* último voltaje en mV */
 static int wifi_reintentos = 0;
 
 // ------------------------------------------------------
@@ -253,6 +257,45 @@ static void rgb_led_init(void)
 }
 
 // ------------------------------------------------------
+// ADC — calibración (curve fitting → line fitting → sin calibración)
+// ------------------------------------------------------
+static bool adc_calibration_init(adc_unit_t unit, adc_atten_t atten,
+                                  adc_cali_handle_t *out_handle)
+{
+    bool ok = false;
+
+#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+    adc_cali_curve_fitting_config_t cfg = {
+        .unit_id  = unit,
+        .atten    = atten,
+        .bitwidth = ADC_BITWIDTH_12,
+    };
+    if (adc_cali_create_scheme_curve_fitting(&cfg, out_handle) == ESP_OK) {
+        ESP_LOGI(TAG, "Calibración ADC: curve fitting");
+        ok = true;
+    }
+#endif
+
+#if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
+    if (!ok) {
+        adc_cali_line_fitting_config_t cfg = {
+            .unit_id  = unit,
+            .atten    = atten,
+            .bitwidth = ADC_BITWIDTH_12,
+        };
+        if (adc_cali_create_scheme_line_fitting(&cfg, out_handle) == ESP_OK) {
+            ESP_LOGI(TAG, "Calibración ADC: line fitting");
+            ok = true;
+        }
+    }
+#endif
+
+    if (!ok)
+        ESP_LOGW(TAG, "eFuse sin datos de calibración — usando conversión lineal.");
+    return ok;
+}
+
+// ------------------------------------------------------
 // ADC — inicialización oneshot
 // ------------------------------------------------------
 static void adc_init(void)
@@ -262,10 +305,12 @@ static void adc_init(void)
 
     adc_oneshot_chan_cfg_t chan_cfg = {
         .bitwidth = ADC_BITWIDTH_12,
-        .atten    = ADC_ATTEN_DB_12,   // rango 0 – 3.3 V
+        .atten    = ADC_ATTEN_DB_12,
     };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_handle, ADC_CH_POT, &chan_cfg));
 
+    adc_calibrated = adc_calibration_init(ADC_UNIT_1, ADC_ATTEN_DB_12,
+                                          &adc_cali_handle);
     ESP_LOGI(TAG, "ADC1_CH4 (GPIO4) inicializado.");
 }
 
@@ -274,12 +319,19 @@ static void adc_init(void)
 // ------------------------------------------------------
 static void task_mqtt_publish(void *pvParameters)
 {
+    int raw = 0;
     while (1) {
-        adc_oneshot_read(adc_handle, ADC_CH_POT, &pot_valor);
+        adc_oneshot_read(adc_handle, ADC_CH_POT, &raw);
+
+        if (adc_calibrated)
+            adc_cali_raw_to_voltage(adc_cali_handle, raw, &pot_valor);
+        else
+            pot_valor = (int)((raw / 4095.0f) * ADC_VREF_MV);
+
         mqtt_publicar_pot();
 
-        ESP_LOGI(TAG, "Pot ADC: %d  (%.3f V)",
-                 pot_valor, (pot_valor / (float)ADC_MAX_VAL) * 3.3f);
+        ESP_LOGI(TAG, "Pot raw: %4d  →  %.3f V (calibrado: %s)",
+                 raw, pot_valor / 1000.0f, adc_calibrated ? "sí" : "no");
 
         vTaskDelay(pdMS_TO_TICKS(INTERVALO_MQTT_MS));
     }

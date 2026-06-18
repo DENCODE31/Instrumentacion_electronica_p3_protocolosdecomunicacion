@@ -10,11 +10,11 @@
   "idf.currentSetup": "C:\\esp\\v5.5.2\\esp-idf",
   "C_Cpp.errorSquiggles": "disabled",
   "idf.flashType": "UART",
-  "idf.portWin": "COM10",
+  "idf.portWin": "COM7",
   "idf.openOcdConfigs": [
-    "board/esp32c6-builtin.cfg"
+    "board/esp32s3-builtin.cfg"
   ],
   "idf.customExtraVars": {
-    "IDF_TARGET": "esp32c6"
+    "IDF_TARGET": "esp32s3"
   }
 }

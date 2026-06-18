@@ -379,3 +379,15 @@ Click on Heart Rate Service, you should be able to see Heart Rate Measurement ch
 ## Troubleshooting
 
 For any technical queries, please file an [issue](https://github.com/espressif/esp-idf/issues) on GitHub. We will get back to you soon.
+
+
+---
+
+## Estado del proyecto
+
+**COMPLETADO** — Semestre 2026-1 cerrado.
+
+- Fecha cierre: 2026-06-18
+- Materia: INSTRUMENTACION
+- Entrega: aprobada
+- Estado código: funcional, archivado

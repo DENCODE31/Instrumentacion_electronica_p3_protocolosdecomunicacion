@@ -66,5 +66,26 @@ I (66450) example: Found header => Host: 192.168.194.219
 I (66460) example: Request headers lost
 ```
 
+## 🔗 Acceder desde otro dispositivo (iPad, celular, otra red)
+
+```powershell
+npx serve . -p 3000     # Servir la página localmente
+npx tunnelmole 3000      # URL pública para cualquier dispositivo
+```
+
+---
+
 ## Troubleshooting
 * If the server log shows "httpd_parse: parse_block: request URI/header too long", especially when handling POST requests, then you probably need to increase HTTPD_MAX_REQ_HDR_LEN, which you can find in the project configuration menu (`idf.py menuconfig`): Component config -> HTTP Server -> Max HTTP Request Header Length
+
+
+---
+
+## Estado del proyecto
+
+**COMPLETADO** — Semestre 2026-1 cerrado.
+
+- Fecha cierre: 2026-06-18
+- Materia: INSTRUMENTACION
+- Entrega: aprobada
+- Estado código: funcional, archivado

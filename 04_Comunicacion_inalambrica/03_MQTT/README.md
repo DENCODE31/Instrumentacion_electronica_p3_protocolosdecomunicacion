@@ -207,6 +207,23 @@ TOPIC=/topic/qos0
 DATA=data
 ```
 
+## 🔗 Acceder al HMI desde otro dispositivo (iPad, celular, otra red)
+
+El `index.html` se conecta al broker vía WebSocket Secure (`wss://broker.emqx.io:8084/mqtt`), por lo que **no necesita estar servido desde el ESP32**. Para verlo desde el iPad o desde afuera de tu red local:
+
+```powershell
+# Terminal 1 — servir el index.html localmente
+cd carpeta_del_proyecto
+npx serve . -p 3000
+
+# Terminal 2 — túnel público
+npx tunnelmole 3000
+```
+
+Te dará una URL tipo `https://xxxx.tunnelmole.net` que podés abrir desde cualquier dispositivo, incluso desde otra red.
+
+---
+
 ### <a name="eppp"></a>eppp: Configure master-slave verification
 
 In order to secure the physical connection between the ESP32-P4 (master) and the slave device, it is necessary to set certificates and keys for each side.
@@ -373,3 +390,15 @@ DATA=data
 I (13925) mqtt_example: MQTT_EVENT_DATA
 TOPIC=/topic/qos0
 ```
+
+
+---
+
+## Estado del proyecto
+
+**COMPLETADO** — Semestre 2026-1 cerrado.
+
+- Fecha cierre: 2026-06-18
+- Materia: INSTRUMENTACION
+- Entrega: aprobada
+- Estado código: funcional, archivado

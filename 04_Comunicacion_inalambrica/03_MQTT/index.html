@@ -732,13 +732,115 @@
       justify-content: center;
     }
 
+    /* ── MOBILE HEADER ── */
+    .mobile-header {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1.25rem;
+      margin: -2rem -2rem 1.5rem;
+      background: var(--sidebar);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+
+    .mobile-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .logo-icon-sm {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--cyan), var(--indigo));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+      box-shadow: 0 0 12px rgba(56,189,248,0.35);
+    }
+
+    .mobile-logo-text {
+      font-size: 0.9rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--cyan), var(--indigo));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .m-status {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.38rem 0.8rem;
+      border-radius: 999px;
+      transition: all 0.3s;
+    }
+
+    .m-status.connected {
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.25);
+      color: #86efac;
+    }
+
+    .m-status.disconnected {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: #fca5a5;
+    }
+
     /* ── RESPONSIVE ── */
+
+    /* Tablet ancho: sidebar más compacto */
+    @media (max-width: 1100px) {
+      body          { grid-template-columns: 190px 1fr; }
+      .topbar h1    { font-size: 1.55rem; }
+      .metric-val   { font-size: 1.85rem; }
+      .card-inner   { padding: 1.4rem; }
+    }
+
+    /* Tablet: sin sidebar, grid 2 columnas */
     @media (max-width: 900px) {
       body                { grid-template-columns: 1fr; }
       .sidebar            { display: none; }
-      .main               { padding: 1.5rem; }
-      .grid               { grid-template-columns: 1fr; }
+      .mobile-header      { display: flex; }
+      .topbar             { display: none; }
+      .main               { padding: 2rem; }
+      .grid               { grid-template-columns: 1fr 1fr; gap: 1.25rem; }
       .metric-val         { font-size: 1.7rem; }
+      .card-inner         { padding: 1.5rem; }
+    }
+
+    /* Móvil: columna única, controles táctiles */
+    @media (max-width: 640px) {
+      .main               { padding: 1rem; }
+      .mobile-header      { margin: -1rem -1rem 1rem; padding: 0.75rem 1rem; }
+      .grid               { grid-template-columns: 1fr; gap: 1rem; }
+      .left-col           { gap: 1rem; }
+      .card-inner         { padding: 1.25rem; }
+      .metric-val         { font-size: 2rem; }
+      .gauge-arc          { width: 96px; height: 96px; }
+      .preset             { min-height: 48px; border-radius: 0.65rem; }
+      .btn-send           { padding: 0.9rem; font-size: 0.9rem; min-height: 48px; }
+      input[type="color"] { height: 48px; }
+      .bri-slider::-webkit-slider-thumb { width: 26px; height: 26px; }
+      .bri-capsule        { padding: 0.85rem 1rem; }
+      .chart-svg          { height: 90px; }
+      .cs-val             { font-size: 0.85rem; }
+    }
+
+    /* Móvil pequeño */
+    @media (max-width: 380px) {
+      .gauge-arc    { width: 82px; height: 82px; }
+      .gauge-pct    { font-size: 1.1rem; }
+      .metric-val   { font-size: 1.65rem; }
+      .led-hex      { font-size: 1.2rem; }
+      .led-glow     { width: 58px; height: 58px; }
     }
   </style>
 </head>
@@ -764,11 +866,11 @@
   <div class="s-section-label">Tópicos</div>
   <div class="topic-row">
     <span class="topic-badge sub">SUB</span>
-    <div class="topic-path">instrumentacion/grupo1/potenciometro</div>
+    <div class="topic-path">instrumentacion/grupo7/potenciometro</div>
   </div>
   <div class="topic-row" style="margin-bottom:1.4rem">
     <span class="topic-badge pub">PUB</span>
-    <div class="topic-path">instrumentacion/grupo1/led</div>
+    <div class="topic-path">instrumentacion/grupo7/led</div>
   </div>
 
   <div class="s-section-label">Sistema</div>
@@ -796,6 +898,18 @@
 
 <!-- ── MAIN ── -->
 <div class="main">
+
+  <!-- ── MOBILE HEADER ── -->
+  <header class="mobile-header">
+    <div class="mobile-logo">
+      <div class="logo-icon-sm">⚡</div>
+      <span class="mobile-logo-text">HMI MQTT</span>
+    </div>
+    <div id="mStatus" class="m-status disconnected">
+      <div class="s-dot"></div>
+      <span id="mStatusText">Conectando...</span>
+    </div>
+  </header>
 
   <div class="topbar">
     <h1>Panel de Control</h1>
@@ -845,9 +959,9 @@
 
           <div class="gauge-metrics">
             <div class="metric-block">
-              <span class="metric-label">ADC Raw</span>
+              <span class="metric-label">ADC (mV)</span>
               <span class="metric-val" id="potVal">—</span>
-              <span class="metric-sub">12 bit · 0 – 4095</span>
+              <span class="metric-sub">Calibrado · 0 – 3300 mV</span>
             </div>
             <div class="metric-block">
               <span class="metric-label">Voltaje</span>
@@ -878,8 +992,8 @@
 
         <div class="chart-container">
           <div class="chart-y-labels">
-            <span>4095</span>
-            <span>2048</span>
+            <span>3300</span>
+            <span>1650</span>
             <span>0</span>
           </div>
           <svg id="chartSvg" viewBox="0 0 500 110" preserveAspectRatio="none" class="chart-svg">
@@ -1010,8 +1124,8 @@
 <script>
 // ─── MQTT config ───────────────────────────────────────────
 const BROKER    = "wss://broker.emqx.io:8084/mqtt";
-const TOPIC_POT = "instrumentacion/grupo1/potenciometro";
-const TOPIC_LED = "instrumentacion/grupo1/led";
+const TOPIC_POT = "instrumentacion/grupo7/potenciometro";
+const TOPIC_LED = "instrumentacion/grupo7/led";
 
 const mqttClient = mqtt.connect(BROKER, {
   clientId:        "web_" + Math.random().toString(16).substring(2, 10),
@@ -1022,9 +1136,11 @@ const mqttClient = mqtt.connect(BROKER, {
 
 // ─── Status helpers ────────────────────────────────────────
 function setStatus(ok, text) {
-  const el = document.getElementById("sStatus");
-  el.className = "s-status " + (ok ? "connected" : "disconnected");
+  const cls = ok ? "connected" : "disconnected";
+  document.getElementById("sStatus").className = "s-status " + cls;
   document.getElementById("sStatusText").innerText = text;
+  document.getElementById("mStatus").className = "m-status " + cls;
+  document.getElementById("mStatusText").innerText = text;
 }
 
 // ─── MQTT events ───────────────────────────────────────────
@@ -1047,7 +1163,7 @@ function updateChart(val) {
 
   const pts = chartData.map((v, i) => ({
     x: (i / (CHART_POINTS - 1)) * SVG_W,
-    y: SVG_H - (v / 4095) * SVG_H
+    y: SVG_H - (v / 3300) * SVG_H
   }));
 
   const lineStr = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
@@ -1077,13 +1193,14 @@ let potDebounceTimer = null;
 let latestPotVal     = null;
 
 function applyPot(val) {
-  const pct  = (val / 4095) * 100;
+  // val viene en mV calibrado desde el firmware
+  const pct  = Math.min(100, (val / 3300) * 100);
   const fill = (pct / 100) * 176;
 
   document.getElementById("potVal").innerText   = val;
-  document.getElementById("potVolt").innerText  = ((val / 4095) * 3.3).toFixed(3);
+  document.getElementById("potVolt").innerText  = (val / 1000).toFixed(3);
   document.getElementById("potPct").innerText   = Math.round(pct);
-  document.getElementById("potBar").style.width = Math.min(100, pct).toFixed(1) + "%";
+  document.getElementById("potBar").style.width = pct.toFixed(1) + "%";
   document.getElementById("arcFill").setAttribute("stroke-dasharray", fill.toFixed(1) + " 264");
   updateChart(val);
 }
